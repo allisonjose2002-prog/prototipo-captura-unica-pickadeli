@@ -316,10 +316,10 @@
   }
   .camara-marco {
     position: absolute;
-    left: 12%;
-    right: 12%;
-    top: 22%;
-    bottom: 22%;
+    left: 24%;
+    right: 24%;
+    top: 15%;
+    bottom: 15%;
     border: 3px solid var(--acento);
     border-radius: 8px;
     pointer-events: none;
@@ -487,6 +487,15 @@
           <button type="button" id="admin-todas" class="btn-secundario">Todas</button>
         </div>
       </div>
+      <div class="campo" style="margin-top: 16px;">
+        <label for="admin-codigo">Buscar producto</label>
+        <div class="fila">
+          <input id="admin-codigo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Código del producto">
+          <button type="button" id="admin-buscar" class="btn-secundario">Buscar</button>
+        </div>
+        <button type="button" id="admin-camara" class="btn-alterno" style="width: 100%; margin-top: 8px;">Abrir cámara</button>
+        <p id="admin-msg-scan" class="msg" role="alert" hidden></p>
+      </div>
       <p id="admin-resumen" class="detalle-breve" style="margin: 12px 0 0;"></p>
     </div>
 
@@ -500,7 +509,7 @@
     <button type="button" id="detalle-volver" class="btn-primario btn-alterno">Volver</button>
   </section>
 
-  <!-- CÁMARA (SIMULADA) -->
+  <!-- CÁMARA (LECTURA DE QR) -->
   <div id="camara" class="camara" hidden role="dialog" aria-modal="true">
     <div class="camara-caja">
       <div class="camara-visor">
@@ -524,6 +533,8 @@
 
 </main>
 
+<!-- Decodificador de QR de respaldo (para navegadores sin BarcodeDetector) -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 (function () {
   "use strict";
@@ -555,6 +566,7 @@
     registros: {},        // código de producto -> { lote, programado, cantidad, hora, motivo, final }
     productoP1: null,     // Producción: producto escaneado y válido
     productoP2: null,     // Logística: producto escaneado y con cierre
+    adminCodigo: null,    // Administrador: producto buscado
     pantallaPrevia: null  // para el botón "Volver" del detalle
   };
 
@@ -840,6 +852,12 @@
     var mostrados = 0;
     cont.innerHTML = "";
 
+    if (estado.adminCodigo) {
+      resumen.textContent = "Mostrando el producto " + estado.adminCodigo;
+      cont.appendChild(construirTarjetaLote(estado.adminCodigo));
+      return;
+    }
+
     codigos.forEach(function (codigo) {
       var r = estado.registros[codigo];
       if (fecha) {
@@ -864,22 +882,65 @@
     }
   }
 
+  // Busca un producto por código (escrito o leído con la cámara)
+  function buscarAdmin(valor) {
+    var codigo = String(valor).trim().toUpperCase();
+    $("admin-codigo").value = codigo;
+
+    if (codigo === "") {
+      estado.adminCodigo = null;
+      mostrarMensaje($("admin-msg-scan"), "");
+      renderAdmin();
+      return;
+    }
+    if (!PRODUCTOS[codigo]) {
+      mostrarMensaje($("admin-msg-scan"), "Código no encontrado. Revise el producto.");
+      return;
+    }
+    mostrarMensaje($("admin-msg-scan"), "");
+    estado.adminCodigo = codigo;
+    renderAdmin();
+  }
+
+  function limpiarBusquedaAdmin() {
+    estado.adminCodigo = null;
+    $("admin-codigo").value = "";
+    mostrarMensaje($("admin-msg-scan"), "");
+  }
+
   $("ir-admin").addEventListener("click", function () {
     mostrarBannerInicio("", "");
+    limpiarBusquedaAdmin();
     renderAdmin();
     mostrarPantalla("admin");
   });
 
-  $("admin-fecha").addEventListener("input", renderAdmin);
+  $("admin-fecha").addEventListener("input", function () {
+    limpiarBusquedaAdmin();
+    renderAdmin();
+  });
 
   $("admin-hoy").addEventListener("click", function () {
+    limpiarBusquedaAdmin();
     $("admin-fecha").value = fechaActual();
     renderAdmin();
   });
 
   $("admin-todas").addEventListener("click", function () {
+    limpiarBusquedaAdmin();
     $("admin-fecha").value = "";
     renderAdmin();
+  });
+
+  $("admin-buscar").addEventListener("click", function () {
+    buscarAdmin($("admin-codigo").value);
+  });
+
+  $("admin-codigo").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      buscarAdmin($("admin-codigo").value);
+    }
   });
 
   $("detalle-volver").addEventListener("click", function () {
@@ -1233,8 +1294,9 @@
     mostrarPantalla("confirmada");
   }
 
-  // CÁMARA (SIMULADA): abre la vista de cámara si el navegador lo permite;
-  // la lectura del código es simulada.
+  // CÁMARA: abre la vista de cámara y lee códigos QR en vivo.
+  // Usa BarcodeDetector si el navegador lo tiene; si no, jsQR.
+  // "Leer código" sigue disponible como lectura simulada de respaldo.
   var camaraDestino = null;
   var camaraStream = null;
   var camaraVideo = $("camara-video");
@@ -1252,7 +1314,80 @@
     $("camara-select-bloque").hidden = !OBSERVADOR;
   })();
 
+  // Lector de QR
+  var lectorCanvas = document.createElement("canvas");
+  var lectorCtx = lectorCanvas.getContext("2d", { willReadFrequently: true });
+  var detectorQR = null;
+  var lecturaId = null;
+  var leyendo = false;
+
+  if ("BarcodeDetector" in window) {
+    try { detectorQR = new window.BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { detectorQR = null; }
+  }
+
+  function iniciarLectura() {
+    detenerLectura();
+    lecturaId = setInterval(intentarLeer, 200);
+  }
+
+  function detenerLectura() {
+    clearInterval(lecturaId);
+    lecturaId = null;
+    leyendo = false;
+  }
+
+  function intentarLeer() {
+    if (leyendo || !camaraStream || camaraVideo.readyState < 2) return;
+
+    if (detectorQR) {
+      leyendo = true;
+      detectorQR.detect(camaraVideo)
+        .then(function (res) {
+          leyendo = false;
+          if (res.length && res[0].rawValue) codigoDetectado(res[0].rawValue);
+        })
+        .catch(function () {
+          leyendo = false;
+          detectorQR = null; // si falla, se usa jsQR
+        });
+      return;
+    }
+
+    if (typeof window.jsQR !== "function") return;
+    var w = camaraVideo.videoWidth;
+    var h = camaraVideo.videoHeight;
+    if (!w || !h) return;
+    var escala = Math.min(1, 640 / Math.max(w, h));
+    var cw = Math.round(w * escala);
+    var ch = Math.round(h * escala);
+    lectorCanvas.width = cw;
+    lectorCanvas.height = ch;
+    lectorCtx.drawImage(camaraVideo, 0, 0, cw, ch);
+    var img = lectorCtx.getImageData(0, 0, cw, ch);
+    var qr = window.jsQR(img.data, cw, ch, { inversionAttempts: "attemptBoth" });
+    if (qr && qr.data) codigoDetectado(qr.data);
+  }
+
+  function codigoDetectado(texto) {
+    var destino = camaraDestino;
+    if (!destino) return;
+    cerrarCamara();
+    if (navigator.vibrate) navigator.vibrate(80);
+    aplicarCodigo(destino, texto);
+  }
+
+  function aplicarCodigo(destino, codigo) {
+    if (destino === "p1") {
+      escanearProductoP1(codigo);
+    } else if (destino === "p2") {
+      escanearProductoP2(codigo);
+    } else if (destino === "admin") {
+      buscarAdmin(codigo);
+    }
+  }
+
   function detenerStream() {
+    detenerLectura();
     if (camaraStream) {
       camaraStream.getTracks().forEach(function (t) { t.stop(); });
       camaraStream = null;
@@ -1277,6 +1412,8 @@
         }
         camaraStream = s;
         camaraVideo.srcObject = s;
+        mostrarMensaje(camaraEstado, "Apunte la cámara al código QR del producto.");
+        iniciarLectura();
       })
       .catch(function () {
         mostrarMensaje(camaraEstado, "Sin acceso a la cámara. Use Leer código.");
@@ -1293,15 +1430,12 @@
     var codigo = OBSERVADOR ? $("camara-select").value : PRODUCTO_SIMULADO;
     var destino = camaraDestino;
     cerrarCamara();
-    if (destino === "p1") {
-      escanearProductoP1(codigo);
-    } else if (destino === "p2") {
-      escanearProductoP2(codigo);
-    }
+    aplicarCodigo(destino, codigo);
   }
 
   $("p1-camara").addEventListener("click", function () { abrirCamara("p1"); });
   $("p2-camara").addEventListener("click", function () { abrirCamara("p2"); });
+  $("admin-camara").addEventListener("click", function () { abrirCamara("admin"); });
   $("camara-leer").addEventListener("click", leerCamara);
   $("camara-cerrar").addEventListener("click", cerrarCamara);
 
@@ -1314,6 +1448,7 @@
     limpiarProduccion();
     prepararLogistica(null);
     p2Escaneo.value = "";
+    limpiarBusquedaAdmin();
     tiempoDetenido = null;
     $("cronometro").textContent = "0,0";
     clearInterval(cronoId);
