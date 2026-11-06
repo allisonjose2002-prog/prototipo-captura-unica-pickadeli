@@ -281,6 +281,62 @@
   .icono-grande.ok { background: var(--ok-fondo); border-color: var(--ok-borde); color: var(--ok-texto); }
   .icono-grande.warn { background: var(--warn-fondo); border-color: var(--warn-borde); color: var(--warn-texto); }
   .titulo-centrado { text-align: center; }
+  .camara {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 10;
+  }
+  .camara-caja {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+  .camara-visor {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #111;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .camara-visor video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .camara-marco {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    top: 22%;
+    bottom: 22%;
+    border: 3px solid var(--acento);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .camara-estado {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    margin: 0;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 4px;
+  }
 </style>
 </head>
 <body>
@@ -313,6 +369,7 @@
           <input id="p1-codigo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Código del producto">
           <button type="button" id="p1-escanear" class="btn-secundario">Escanear</button>
         </div>
+        <button type="button" id="p1-camara" class="btn-alterno" style="width: 100%; margin-top: 8px;">Abrir cámara</button>
         <p id="p1-msg-scan" class="msg" role="alert" hidden></p>
       </div>
 
@@ -372,6 +429,7 @@
           <input id="p2-escaneo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Código del producto">
           <button type="button" id="p2-escanear" class="btn-secundario">Escanear</button>
         </div>
+        <button type="button" id="p2-camara" class="btn-alterno" style="width: 100%; margin-top: 8px;">Abrir cámara</button>
         <p id="p2-msg-scan" class="msg" role="alert" hidden></p>
       </div>
     </div>
@@ -441,6 +499,23 @@
     <div id="detalle-contenido"></div>
     <button type="button" id="detalle-volver" class="btn-primario btn-alterno">Volver</button>
   </section>
+
+  <!-- CÁMARA (SIMULADA) -->
+  <div id="camara" class="camara" hidden role="dialog" aria-modal="true">
+    <div class="camara-caja">
+      <div class="camara-visor">
+        <video id="camara-video" autoplay muted playsinline></video>
+        <div class="camara-marco"></div>
+        <p id="camara-estado" class="camara-estado" hidden></p>
+      </div>
+      <div id="camara-select-bloque" class="campo" style="margin-top: 16px;" hidden>
+        <label for="camara-select">Producto a simular</label>
+        <select id="camara-select"></select>
+      </div>
+      <button type="button" id="camara-leer" class="btn-primario" style="margin-top: 16px;">Leer código</button>
+      <button type="button" id="camara-cerrar" class="btn-primario btn-alterno">Cancelar</button>
+    </div>
+  </div>
 
   <div class="pie">
     <button type="button" id="volver-inicio" class="btn-discreto" hidden>Volver al inicio</button>
@@ -1157,6 +1232,78 @@
 
     mostrarPantalla("confirmada");
   }
+
+  // CÁMARA (SIMULADA): abre la vista de cámara si el navegador lo permite;
+  // la lectura del código es simulada.
+  var camaraDestino = null;
+  var camaraStream = null;
+  var camaraVideo = $("camara-video");
+  var camaraEstado = $("camara-estado");
+
+  (function llenarSelectCamara() {
+    var sel = $("camara-select");
+    Object.keys(PRODUCTOS).forEach(function (codigo) {
+      var op = document.createElement("option");
+      op.value = codigo;
+      op.textContent = PRODUCTOS[codigo].nombre + " (" + codigo + ")";
+      sel.appendChild(op);
+    });
+    sel.value = PRODUCTO_SIMULADO;
+    $("camara-select-bloque").hidden = !OBSERVADOR;
+  })();
+
+  function detenerStream() {
+    if (camaraStream) {
+      camaraStream.getTracks().forEach(function (t) { t.stop(); });
+      camaraStream = null;
+    }
+    camaraVideo.srcObject = null;
+  }
+
+  function abrirCamara(destino) {
+    camaraDestino = destino;
+    camaraEstado.hidden = true;
+    $("camara").hidden = false;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      mostrarMensaje(camaraEstado, "Cámara no disponible. Use Leer código.");
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+      .then(function (s) {
+        if ($("camara").hidden) {
+          s.getTracks().forEach(function (t) { t.stop(); });
+          return;
+        }
+        camaraStream = s;
+        camaraVideo.srcObject = s;
+      })
+      .catch(function () {
+        mostrarMensaje(camaraEstado, "Sin acceso a la cámara. Use Leer código.");
+      });
+  }
+
+  function cerrarCamara() {
+    detenerStream();
+    $("camara").hidden = true;
+    camaraDestino = null;
+  }
+
+  function leerCamara() {
+    var codigo = OBSERVADOR ? $("camara-select").value : PRODUCTO_SIMULADO;
+    var destino = camaraDestino;
+    cerrarCamara();
+    if (destino === "p1") {
+      escanearProductoP1(codigo);
+    } else if (destino === "p2") {
+      escanearProductoP2(codigo);
+    }
+  }
+
+  $("p1-camara").addEventListener("click", function () { abrirCamara("p1"); });
+  $("p2-camara").addEventListener("click", function () { abrirCamara("p2"); });
+  $("camara-leer").addEventListener("click", leerCamara);
+  $("camara-cerrar").addEventListener("click", cerrarCamara);
 
   // REINICIAR PRUEBA
   $("reiniciar").addEventListener("click", function () {
