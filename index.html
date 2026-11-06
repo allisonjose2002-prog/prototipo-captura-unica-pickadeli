@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Captura única al cierre de lote · Prototipo</title>
+<style>
+  :root {
+    --acento: #E85D1A;
+    --texto: #1d1d1f;
+    --secundario: #5b5b5b;
+    --fondo: #f6f6f4;
+    --tarjeta: #ffffff;
+    --borde: #d0d0cc;
+    --borde-campo: #8a8a85;
+    --error: #b42318;
+    --ok-texto: #1e6b34;
+    --ok-fondo: #e6f4ea;
+    --ok-borde: #8fc9a0;
+    --warn-texto: #8a4b00;
+    --warn-fondo: #fdf1e3;
+    --warn-borde: #e8b27a;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--texto);
+    background: var(--fondo);
+    overflow-x: hidden;
+  }
+  main {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 8px 0 16px;
+    overflow-wrap: anywhere;
+  }
+  h2 {
+    font-size: 18px;
+    margin: 0 0 8px;
+    overflow-wrap: anywhere;
+  }
+  .tarjeta {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .campo { margin-bottom: 16px; }
+  .campo:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  input, select {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    font-size: 18px;
+    font-family: inherit;
+    padding: 10px 12px;
+    border: 1px solid var(--borde-campo);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--texto);
+  }
+  input::placeholder, textarea::placeholder { color: #9a9a95; }
+  textarea {
+    display: block;
+    width: 100%;
+    min-height: 96px;
+    resize: vertical;
+    font-size: 18px;
+    font-family: inherit;
+    padding: 10px 12px;
+    border: 1px solid var(--borde-campo);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--texto);
+  }
+  .entrada-grande input { min-height: 56px; font-size: 24px; font-weight: 700; }
+  .fila {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .fila input { flex: 1 1 auto; min-width: 0; }
+  button {
+    min-height: 48px;
+    font-size: 17px;
+    font-family: inherit;
+    font-weight: 600;
+    padding: 0 16px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primario {
+    display: block;
+    width: 100%;
+    background: var(--acento);
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .btn-primario:last-child { margin-bottom: 0; }
+  .btn-alterno {
+    background: #fff;
+    color: var(--texto);
+    border-color: var(--borde-campo);
+  }
+  .btn-secundario {
+    background: #fff;
+    color: var(--texto);
+    border-color: var(--borde-campo);
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .btn-ver {
+    min-height: 44px;
+    padding: 0 14px;
+    background: #fff;
+    color: var(--texto);
+    border-color: var(--borde-campo);
+    font-size: 15px;
+  }
+  .btn-discreto {
+    background: none;
+    border: none;
+    color: var(--secundario);
+    text-decoration: underline;
+    font-size: 15px;
+    font-weight: 400;
+    min-height: 44px;
+    padding: 0 8px;
+  }
+  .dato {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ebebe8;
+  }
+  .dato:last-child { border-bottom: none; }
+  .dato span { color: var(--secundario); }
+  .dato strong { text-align: right; overflow-wrap: anywhere; }
+  .dato.grande strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+  .dato.grande span { font-size: 16px; }
+  .producto-nombre {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    overflow-wrap: anywhere;
+  }
+  .producto-sub {
+    color: var(--secundario);
+    font-size: 15px;
+    margin: 0 0 8px;
+  }
+  .crono {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  .crono span { color: var(--secundario); font-weight: 600; }
+  .crono strong {
+    font-size: 32px;
+    font-variant-numeric: tabular-nums;
+  }
+  .msg {
+    margin: 8px 0 0;
+    font-weight: 600;
+    color: var(--error);
+    overflow-wrap: anywhere;
+  }
+  .msg-bloque { margin: 0 0 12px; }
+  .resumen {
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    border: 1px solid;
+    border-radius: 6px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .resumen.ok { background: var(--ok-fondo); border-color: var(--ok-borde); color: var(--ok-texto); }
+  .resumen.warn { background: var(--warn-fondo); border-color: var(--warn-borde); color: var(--warn-texto); }
+  .ok-texto { color: var(--ok-texto); font-weight: 700; }
+  .banner {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border: 1px solid;
+    border-radius: 8px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .banner.ok { background: var(--ok-fondo); border-color: var(--ok-borde); color: var(--ok-texto); }
+  .banner.warn { background: var(--warn-fondo); border-color: var(--warn-borde); color: var(--warn-texto); }
+  .pie {
+    text-align: center;
+    margin: 24px 0 8px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .encabezado-lote {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .tarjeta-lote {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-left-width: 6px;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .fila-lote {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid #ebebe8;
+  }
+  .fila-lote:last-child { border-bottom: none; }
+  .info-lote {
+    flex: 1 1 160px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .detalle-breve {
+    color: var(--secundario);
+    font-size: 15px;
+    margin-top: 2px;
+  }
+  .acciones-lote {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .icono-grande {
+    width: 72px;
+    height: 72px;
+    margin: 4px auto 12px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 700;
+    border: 2px solid;
+  }
+  .icono-grande.ok { background: var(--ok-fondo); border-color: var(--ok-borde); color: var(--ok-texto); }
+  .icono-grande.warn { background: var(--warn-fondo); border-color: var(--warn-borde); color: var(--warn-texto); }
+  .titulo-centrado { text-align: center; }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- INICIO -->
+  <section id="pantalla-inicio">
+    <h1>¿Quién usa el equipo?</h1>
+    <p id="inicio-aviso" class="banner" role="status" hidden></p>
+    <div class="tarjeta">
+      <button type="button" id="ir-produccion" class="btn-primario">Producción</button>
+      <button type="button" id="ir-logistica" class="btn-primario btn-alterno">Logística</button>
+      <button type="button" id="ir-admin" class="btn-primario btn-alterno">Administrador</button>
+    </div>
+  </section>
+
+  <!-- PANTALLA 1 · PRODUCCIÓN -->
+  <section id="pantalla-produccion" hidden>
+    <h1>Producción · Cerrar lote</h1>
+
+    <div class="crono" id="crono-bloque" hidden>
+      <span>Tiempo</span>
+      <strong id="cronometro">0,0</strong>
+    </div>
+
+    <div class="tarjeta">
+      <div class="campo">
+        <label for="p1-codigo">Escanear producto</label>
+        <div class="fila">
+          <input id="p1-codigo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Código del producto">
+          <button type="button" id="p1-escanear" class="btn-secundario">Escanear</button>
+        </div>
+        <p id="p1-msg-scan" class="msg" role="alert" hidden></p>
+      </div>
+
+      <div id="p1-producto" hidden>
+        <div class="dato" style="border-bottom: 1px solid #ebebe8; padding-top: 14px;"><span>Producto</span><strong id="p1-nombre"></strong></div>
+        <div class="dato"><span>Línea</span><strong id="p1-linea"></strong></div>
+        <div class="dato"><span>Lote</span><strong id="p1-lote"></strong></div>
+        <div class="dato grande"><span>Cantidad programada</span><strong id="p1-programado"></strong></div>
+      </div>
+    </div>
+
+    <div id="p1-cantidad-bloque" class="tarjeta" hidden>
+      <div class="campo entrada-grande">
+        <label for="p1-cantidad">Cantidad lista</label>
+        <input id="p1-cantidad" type="number" inputmode="numeric" min="0" step="1">
+      </div>
+      <p id="p1-resumen" class="resumen" hidden></p>
+      <div id="p1-motivo-bloque" class="campo" hidden style="margin-top: 16px;">
+        <label for="p1-motivo">Motivo de la diferencia</label>
+        <select id="p1-motivo">
+          <option value="">— Seleccionar —</option>
+          <option value="Rendimiento">Rendimiento</option>
+          <option value="Insumos">Insumos</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+    </div>
+
+    <p id="p1-msg" class="msg msg-bloque" role="alert" hidden></p>
+    <button type="button" id="p1-confirmar" class="btn-primario">Confirmar cierre</button>
+
+    <div class="tarjeta" style="margin-top: 16px;">
+      <h2>Mis cierres</h2>
+      <div id="p1-movimientos"></div>
+    </div>
+  </section>
+
+  <!-- PANTALLA 2 · LOGÍSTICA -->
+  <section id="pantalla-logistica" hidden>
+    <h1>Logística · Confirmar carga</h1>
+
+    <div class="tarjeta">
+      <p id="p2-vacio" class="ok-texto" style="color: var(--secundario); font-weight: 400; margin: 0;">Sin producto cargado.</p>
+      <div id="p2-info" hidden>
+        <div class="producto-nombre" id="p2-nombre"></div>
+        <p class="producto-sub" id="p2-sub"></p>
+        <div class="dato grande"><span>Cantidad registrada por Producción</span><strong id="p2-registrada"></strong></div>
+        <div class="dato"><span>Fecha y hora de registro</span><strong id="p2-hora"></strong></div>
+        <p id="p2-cambio" class="resumen" hidden></p>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="campo">
+        <label for="p2-escaneo">Escanear producto</label>
+        <div class="fila">
+          <input id="p2-escaneo" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Código del producto">
+          <button type="button" id="p2-escanear" class="btn-secundario">Escanear</button>
+        </div>
+        <p id="p2-msg-scan" class="msg" role="alert" hidden></p>
+      </div>
+    </div>
+
+    <div id="p2-verificar-bloque" class="tarjeta" hidden>
+      <div class="campo entrada-grande">
+        <label for="p2-verificada">Cantidad verificada</label>
+        <input id="p2-verificada" type="number" inputmode="numeric" min="0" step="1">
+      </div>
+      <p id="p2-resumen" class="resumen" hidden></p>
+      <div id="p2-motivo-bloque" class="campo" hidden style="margin-top: 16px;">
+        <label for="p2-motivo">Comentario sobre la diferencia</label>
+        <textarea id="p2-motivo" rows="3" maxlength="300" placeholder="Escriba qué pasó con la cantidad"></textarea>
+      </div>
+    </div>
+
+    <p id="p2-msg" class="msg msg-bloque" role="alert" hidden></p>
+    <button type="button" id="p2-confirmar" class="btn-primario">Confirmar carga</button>
+
+    <div class="tarjeta" style="margin-top: 16px;">
+      <h2>Mis cargas confirmadas</h2>
+      <div id="p2-movimientos"></div>
+    </div>
+  </section>
+
+  <!-- CARGA CONFIRMADA -->
+  <section id="pantalla-confirmada" hidden>
+    <div class="titulo-centrado">
+      <div id="f-icono" class="icono-grande ok">✓</div>
+      <h1 id="f-titulo">Carga confirmada</h1>
+    </div>
+
+    <div class="tarjeta">
+      <div class="producto-nombre" id="f-producto"></div>
+      <div class="dato"><span>Lote</span><strong id="f-lote"></strong></div>
+      <div class="dato"><span>Registrada por Producción</span><strong id="f-registrada"></strong></div>
+      <div class="dato grande"><span>Cantidad final</span><strong id="f-cantidad"></strong></div>
+      <div class="dato"><span>Fecha y hora de confirmación</span><strong id="f-hora"></strong></div>
+      <div class="dato" id="f-motivo-fila" hidden><span>Motivo de la diferencia</span><strong id="f-motivo"></strong></div>
+    </div>
+
+    <button type="button" id="f-volver" class="btn-primario btn-alterno">Volver al inicio</button>
+  </section>
+
+  <!-- ADMINISTRADOR -->
+  <section id="pantalla-admin" hidden>
+    <h1>Administrador · Estado de lotes</h1>
+
+    <div class="tarjeta">
+      <div class="campo">
+        <label for="admin-fecha">Filtrar por fecha</label>
+        <div class="fila" style="flex-wrap: wrap;">
+          <input id="admin-fecha" type="date">
+          <button type="button" id="admin-hoy" class="btn-secundario">Hoy</button>
+          <button type="button" id="admin-todas" class="btn-secundario">Todas</button>
+        </div>
+      </div>
+      <p id="admin-resumen" class="detalle-breve" style="margin: 12px 0 0;"></p>
+    </div>
+
+    <div id="admin-lista"></div>
+  </section>
+
+  <!-- DETALLE DE UN LOTE -->
+  <section id="pantalla-detalle" hidden>
+    <h1>Detalle del lote</h1>
+    <div id="detalle-contenido"></div>
+    <button type="button" id="detalle-volver" class="btn-primario btn-alterno">Volver</button>
+  </section>
+
+  <div class="pie">
+    <button type="button" id="volver-inicio" class="btn-discreto" hidden>Volver al inicio</button>
+    <button type="button" id="reiniciar" class="btn-discreto">Reiniciar prueba</button>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // Catálogo de productos de prueba (ficticios, fijos).
+  // Al escanear el producto, el sistema conoce su lote, línea y cantidad programada.
+  // PRD-1001 es el caso principal: programado 120, quedan 104.
+  var PRODUCTOS = {
+    "PRD-1001": { nombre: "Pollo a la plancha 1 kg",   linea: "Línea 2", lote: "L-2607-014", programado: 120 },
+    "PRD-1002": { nombre: "Pan de masa madre 500 g",   linea: "Línea 1", lote: "L-2607-015", programado: 80 },
+    "PRD-1003": { nombre: "Ensalada de lechuga 500 g", linea: "Línea 1", lote: "L-2607-016", programado: 150 },
+    "PRD-1004": { nombre: "Palta Hass 1 kg",           linea: "Línea 3", lote: "L-2607-017", programado: 60 }
+  };
+  var PRODUCTO_SIMULADO = "PRD-1001";
+
+  // Estados visuales de un cierre
+  var ESTADOS = {
+    sinCierre: { texto: "Sin cierre",         icono: "○", color: "#5b5b5b", fondo: "#efefec", borde: "#bdbdb8" },
+    pendiente: { texto: "Pendiente de carga", icono: "◷", color: "#1f4e79", fondo: "#e8f0f8", borde: "#9fbcd8" },
+    sinDif:    { texto: "Sin diferencias",    icono: "✓", color: "#1e6b34", fondo: "#e6f4ea", borde: "#8fc9a0" },
+    conDif:    { texto: "Con diferencias",    icono: "⚠", color: "#8a4b00", fondo: "#fdf1e3", borde: "#e8b27a" }
+  };
+
+  // Modo observador: se activa con ?observador=1 en la dirección.
+  var OBSERVADOR = new URLSearchParams(window.location.search).get("observador") === "1";
+
+  // Estado en memoria (sin localStorage ni backend)
+  var estado = {
+    registros: {},        // código de producto -> { lote, programado, cantidad, hora, motivo, final }
+    productoP1: null,     // Producción: producto escaneado y válido
+    productoP2: null,     // Logística: producto escaneado y con cierre
+    pantallaPrevia: null  // para el botón "Volver" del detalle
+  };
+
+  // Cronómetro (solo para el observador)
+  var cronoInicio = 0;
+  var cronoId = null;
+  var tiempoDetenido = null;
+
+  // Elementos
+  var $ = function (id) { return document.getElementById(id); };
+
+  var p1Codigo = $("p1-codigo");
+  var p1Producto = $("p1-producto");
+  var p1CantidadBloque = $("p1-cantidad-bloque");
+  var p1Cantidad = $("p1-cantidad");
+  var p1Resumen = $("p1-resumen");
+  var p1MotivoBloque = $("p1-motivo-bloque");
+  var p1Motivo = $("p1-motivo");
+  var p1MsgScan = $("p1-msg-scan");
+  var p1Msg = $("p1-msg");
+
+  var p2Escaneo = $("p2-escaneo");
+  var p2Info = $("p2-info");
+  var p2Vacio = $("p2-vacio");
+  var p2Cambio = $("p2-cambio");
+  var p2VerificarBloque = $("p2-verificar-bloque");
+  var p2Verificada = $("p2-verificada");
+  var p2Resumen = $("p2-resumen");
+  var p2MotivoBloque = $("p2-motivo-bloque");
+  var p2Motivo = $("p2-motivo");
+  var p2MsgScan = $("p2-msg-scan");
+  var p2Msg = $("p2-msg");
+
+  // Utilidades
+  function pad(n) { return String(n).padStart(2, "0"); }
+
+  function horaActual() {
+    var d = new Date();
+    return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
+  // Fecha en formato ISO (AAAA-MM-DD), usada para filtrar
+  function fechaActual() {
+    var d = new Date();
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+
+  function formatearFecha(iso) {
+    if (!iso) return "";
+    var p = iso.split("-");
+    return p[2] + "/" + p[1] + "/" + p[0];
+  }
+
+  function formatearFechaHora(iso, hora) {
+    return formatearFecha(iso) + " · " + hora;
+  }
+
+  function mostrarMensaje(el, texto) {
+    if (texto) {
+      el.textContent = texto;
+      el.hidden = false;
+    } else {
+      el.textContent = "";
+      el.hidden = true;
+    }
+  }
+
+  function mostrarResumen(el, tipo, texto) {
+    if (!texto) {
+      el.hidden = true;
+      el.textContent = "";
+      return;
+    }
+    el.className = "resumen " + tipo;
+    el.textContent = texto;
+    el.hidden = false;
+  }
+
+  // Devuelve null si está vacío, NaN si no es entero en rango, o el número.
+  function leerEntero(raw, max) {
+    var texto = String(raw).trim();
+    if (texto === "") return null;
+    var n = Number(texto);
+    if (!Number.isInteger(n) || n < 0 || n > max) return NaN;
+    return n;
+  }
+
+  function mostrarPantalla(nombre) {
+    $("pantalla-inicio").hidden = nombre !== "inicio";
+    $("pantalla-produccion").hidden = nombre !== "produccion";
+    $("pantalla-logistica").hidden = nombre !== "logistica";
+    $("pantalla-confirmada").hidden = nombre !== "confirmada";
+    $("pantalla-admin").hidden = nombre !== "admin";
+    $("pantalla-detalle").hidden = nombre !== "detalle";
+    $("volver-inicio").hidden = nombre === "inicio";
+    window.scrollTo(0, 0);
+  }
+
+  function mostrarBannerInicio(tipo, texto) {
+    var b = $("inicio-aviso");
+    if (!texto) {
+      b.hidden = true;
+      b.textContent = "";
+      return;
+    }
+    b.className = "banner " + tipo;
+    b.textContent = texto;
+    b.hidden = false;
+  }
+
+  // Cronómetro
+  function actualizarCronometro() {
+    var seg = tiempoDetenido !== null ? tiempoDetenido : (performance.now() - cronoInicio) / 1000;
+    $("cronometro").textContent = seg.toFixed(1).replace(".", ",");
+  }
+
+  function iniciarCronometro() {
+    tiempoDetenido = null;
+    cronoInicio = performance.now();
+    clearInterval(cronoId);
+    cronoId = setInterval(actualizarCronometro, 100);
+    actualizarCronometro();
+  }
+
+  function detenerCronometro() {
+    tiempoDetenido = (performance.now() - cronoInicio) / 1000;
+    clearInterval(cronoId);
+    actualizarCronometro();
+  }
+
+  // Estado visual de un producto según su cierre
+  function estadoDeProducto(codigo) {
+    var r = estado.registros[codigo];
+    if (!r) return ESTADOS.sinCierre;
+    if (!r.final) return ESTADOS.pendiente;
+    return r.final.cantidad === r.cantidad ? ESTADOS.sinDif : ESTADOS.conDif;
+  }
+
+  function crearBadge(est) {
+    var b = document.createElement("span");
+    b.className = "badge";
+    b.style.color = est.color;
+    b.style.background = est.fondo;
+    b.style.borderColor = est.borde;
+    b.textContent = est.icono + " " + est.texto;
+    return b;
+  }
+
+  function agregarDato(padre, etiqueta, valor) {
+    var fila = document.createElement("div");
+    fila.className = "dato";
+    var s = document.createElement("span");
+    s.textContent = etiqueta;
+    var st = document.createElement("strong");
+    st.textContent = valor;
+    fila.appendChild(s);
+    fila.appendChild(st);
+    padre.appendChild(fila);
+  }
+
+  // Tarjeta completa de un producto con su cierre (Administrador y Detalle)
+  function construirTarjetaLote(codigo) {
+    var p = PRODUCTOS[codigo];
+    var r = estado.registros[codigo];
+    var est = estadoDeProducto(codigo);
+
+    var tarjeta = document.createElement("div");
+    tarjeta.className = "tarjeta-lote";
+    tarjeta.style.borderLeftColor = est.color;
+
+    var encabezado = document.createElement("div");
+    encabezado.className = "encabezado-lote";
+    var titulo = document.createElement("div");
+    var nombre = document.createElement("h2");
+    nombre.textContent = p.nombre;
+    var sub = document.createElement("p");
+    sub.className = "producto-sub";
+    sub.style.margin = "0";
+    sub.textContent = codigo + " · Lote " + p.lote + " · " + p.linea;
+    titulo.appendChild(nombre);
+    titulo.appendChild(sub);
+    encabezado.appendChild(titulo);
+    encabezado.appendChild(crearBadge(est));
+    tarjeta.appendChild(encabezado);
+
+    agregarDato(tarjeta, "Cantidad programada", String(p.programado));
+
+    if (r) {
+      agregarDato(tarjeta, "Cantidad lista (Producción)", String(r.cantidad));
+      agregarDato(tarjeta, "Fecha y hora de cierre", formatearFechaHora(r.fecha, r.hora));
+      agregarDato(tarjeta, "Motivo de Producción", r.motivo || "—");
+      if (r.final) {
+        agregarDato(tarjeta, "Cantidad final (Logística)", String(r.final.cantidad));
+        agregarDato(tarjeta, "Fecha y hora de confirmación", formatearFechaHora(r.final.fecha, r.final.hora));
+        agregarDato(tarjeta, "Motivo de la diferencia", r.final.motivo || "—");
+      }
+    }
+    return tarjeta;
+  }
+
+  // Movimientos de cada área: descripción breve y botón para ver detalle
+  function renderMovimientos(contId, modo) {
+    var cont = $(contId);
+    cont.innerHTML = "";
+    var hayFilas = false;
+
+    Object.keys(estado.registros).forEach(function (codigo) {
+      var r = estado.registros[codigo];
+      if (modo === "logistica" && !r.final) return;
+      hayFilas = true;
+
+      var fila = document.createElement("div");
+      fila.className = "fila-lote";
+
+      var info = document.createElement("div");
+      info.className = "info-lote";
+      var titulo = document.createElement("strong");
+      titulo.textContent = PRODUCTOS[codigo].nombre;
+      var breve = document.createElement("div");
+      breve.className = "detalle-breve";
+      breve.textContent = modo === "logistica"
+        ? "Final " + r.final.cantidad + " de " + r.cantidad + " registrados · " + formatearFechaHora(r.final.fecha, r.final.hora)
+        : "Lista " + r.cantidad + " de " + r.programado + " · " + formatearFechaHora(r.fecha, r.hora);
+      info.appendChild(titulo);
+      info.appendChild(breve);
+
+      var acciones = document.createElement("div");
+      acciones.className = "acciones-lote";
+      acciones.appendChild(crearBadge(estadoDeProducto(codigo)));
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn-ver";
+      btn.textContent = "Ver detalle";
+      btn.addEventListener("click", function () { verDetalle(codigo, modo); });
+      acciones.appendChild(btn);
+
+      fila.appendChild(info);
+      fila.appendChild(acciones);
+      cont.appendChild(fila);
+    });
+
+    if (!hayFilas) {
+      var p = document.createElement("p");
+      p.textContent = "Sin movimientos todavía.";
+      p.style.color = "var(--secundario)";
+      p.style.margin = "0";
+      cont.appendChild(p);
+    }
+  }
+
+  function verDetalle(codigo, origen) {
+    estado.pantallaPrevia = origen;
+    var cont = $("detalle-contenido");
+    cont.innerHTML = "";
+    cont.appendChild(construirTarjetaLote(codigo));
+    mostrarPantalla("detalle");
+  }
+
+  // INICIO
+  $("ir-produccion").addEventListener("click", function () {
+    mostrarBannerInicio("", "");
+    limpiarProduccion();
+    renderMovimientos("p1-movimientos", "produccion");
+    mostrarPantalla("produccion");
+    iniciarCronometro();
+    p1Codigo.focus();
+  });
+
+  $("ir-logistica").addEventListener("click", function () {
+    mostrarBannerInicio("", "");
+    prepararLogistica(null);
+    renderMovimientos("p2-movimientos", "logistica");
+    mostrarPantalla("logistica");
+    p2Escaneo.focus();
+  });
+
+  // ADMINISTRADOR: lista con filtro por fecha (cierre o confirmación)
+  function renderAdmin() {
+    var fecha = $("admin-fecha").value;
+    var cont = $("admin-lista");
+    var resumen = $("admin-resumen");
+    var codigos = Object.keys(PRODUCTOS);
+    var mostrados = 0;
+    cont.innerHTML = "";
+
+    codigos.forEach(function (codigo) {
+      var r = estado.registros[codigo];
+      if (fecha) {
+        var coincide = r && (r.fecha === fecha || (r.final && r.final.fecha === fecha));
+        if (!coincide) return;
+      }
+      mostrados++;
+      cont.appendChild(construirTarjetaLote(codigo));
+    });
+
+    if (fecha) {
+      resumen.textContent = "Movimientos del " + formatearFecha(fecha) + ": " + mostrados + " de " + codigos.length + " lotes";
+      if (mostrados === 0) {
+        var p = document.createElement("p");
+        p.textContent = "No hay movimientos en esta fecha.";
+        p.style.color = "var(--secundario)";
+        p.style.margin = "0";
+        cont.appendChild(p);
+      }
+    } else {
+      resumen.textContent = "Mostrando los " + codigos.length + " lotes";
+    }
+  }
+
+  $("ir-admin").addEventListener("click", function () {
+    mostrarBannerInicio("", "");
+    renderAdmin();
+    mostrarPantalla("admin");
+  });
+
+  $("admin-fecha").addEventListener("input", renderAdmin);
+
+  $("admin-hoy").addEventListener("click", function () {
+    $("admin-fecha").value = fechaActual();
+    renderAdmin();
+  });
+
+  $("admin-todas").addEventListener("click", function () {
+    $("admin-fecha").value = "";
+    renderAdmin();
+  });
+
+  $("detalle-volver").addEventListener("click", function () {
+    mostrarPantalla(estado.pantallaPrevia || "inicio");
+  });
+
+  $("f-volver").addEventListener("click", function () {
+    mostrarPantalla("inicio");
+  });
+
+  $("volver-inicio").addEventListener("click", function () {
+    mostrarPantalla("inicio");
+  });
+
+  // PRODUCCIÓN
+  function limpiarProduccion() {
+    estado.productoP1 = null;
+    p1Codigo.value = "";
+    p1Producto.hidden = true;
+    p1CantidadBloque.hidden = true;
+    p1Cantidad.value = "";
+    p1Motivo.value = "";
+    p1MotivoBloque.hidden = true;
+    mostrarResumen(p1Resumen, "", "");
+    mostrarMensaje(p1MsgScan, "");
+    mostrarMensaje(p1Msg, "");
+  }
+
+  function mostrarProductoP1(codigo) {
+    var p = PRODUCTOS[codigo];
+    estado.productoP1 = codigo;
+    $("p1-nombre").textContent = p.nombre;
+    $("p1-linea").textContent = p.linea;
+    $("p1-lote").textContent = p.lote;
+    $("p1-programado").textContent = String(p.programado);
+    p1Producto.hidden = false;
+    p1CantidadBloque.hidden = false;
+    p1Cantidad.max = String(p.programado);
+    p1Cantidad.value = "";
+    p1Motivo.value = "";
+    p1MotivoBloque.hidden = true;
+    mostrarResumen(p1Resumen, "", "");
+    mostrarMensaje(p1Msg, "");
+    p1Cantidad.focus();
+  }
+
+  // Devuelve true si el producto es válido y puede cerrarse.
+  function escanearProductoP1(valor) {
+    var codigo = String(valor).trim().toUpperCase();
+    p1Codigo.value = codigo;
+
+    if (codigo === "") {
+      estado.productoP1 = null;
+      p1Producto.hidden = true;
+      p1CantidadBloque.hidden = true;
+      mostrarMensaje(p1MsgScan, "Escanee el producto.");
+      return false;
+    }
+    if (!PRODUCTOS[codigo]) {
+      estado.productoP1 = null;
+      p1Producto.hidden = true;
+      p1CantidadBloque.hidden = true;
+      mostrarMensaje(p1MsgScan, "Código no encontrado. Revise el producto.");
+      return false;
+    }
+    if (estado.registros[codigo]) {
+      estado.productoP1 = null;
+      p1Producto.hidden = true;
+      p1CantidadBloque.hidden = true;
+      mostrarMensaje(p1MsgScan, "Este producto ya tiene un cierre registrado.");
+      return false;
+    }
+
+    mostrarMensaje(p1MsgScan, "");
+    mostrarProductoP1(codigo);
+    return true;
+  }
+
+  function actualizarResumenP1() {
+    if (!estado.productoP1) {
+      mostrarResumen(p1Resumen, "", "");
+      p1MotivoBloque.hidden = true;
+      return;
+    }
+    var prog = PRODUCTOS[estado.productoP1].programado;
+    var raw = p1Cantidad.value.trim();
+    if (raw === "") {
+      mostrarResumen(p1Resumen, "", "");
+      p1MotivoBloque.hidden = true;
+      return;
+    }
+    var n = leerEntero(raw, prog);
+    if (Number.isNaN(n)) {
+      mostrarResumen(p1Resumen, "warn", "Ingrese un número entero entre 0 y " + prog + ".");
+      p1MotivoBloque.hidden = true;
+      return;
+    }
+    if (n === prog) {
+      mostrarResumen(p1Resumen, "ok", "✓ Coincide con lo programado");
+      p1MotivoBloque.hidden = true;
+      return;
+    }
+    var d = n - prog;
+    mostrarResumen(p1Resumen, "warn", "⚠ Diferencia de " + (d > 0 ? "+" : "") + d + " frente a lo programado (" + prog + ")");
+    p1MotivoBloque.hidden = false;
+  }
+
+  $("p1-escanear").addEventListener("click", function () {
+    var valor = p1Codigo.value.trim() || PRODUCTO_SIMULADO;
+    escanearProductoP1(valor);
+  });
+
+  p1Codigo.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      escanearProductoP1(p1Codigo.value);
+    }
+  });
+
+  p1Cantidad.addEventListener("input", actualizarResumenP1);
+
+  p1Cantidad.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      $("p1-confirmar").click();
+    }
+  });
+
+  p1Motivo.addEventListener("change", function () {
+    if (p1Motivo.value !== "") mostrarMensaje(p1Msg, "");
+  });
+
+  $("p1-confirmar").addEventListener("click", function () {
+    mostrarMensaje(p1Msg, "");
+
+    if (!estado.productoP1 && !escanearProductoP1(p1Codigo.value)) {
+      p1Codigo.focus();
+      return;
+    }
+
+    var codigo = estado.productoP1;
+    var prog = PRODUCTOS[codigo].programado;
+    var n = leerEntero(p1Cantidad.value, prog);
+    if (n === null) {
+      mostrarMensaje(p1Msg, "Ingrese la cantidad lista.");
+      p1Cantidad.focus();
+      return;
+    }
+    if (Number.isNaN(n)) {
+      mostrarMensaje(p1Msg, "La cantidad lista debe ser un número entero entre 0 y " + prog + ".");
+      p1Cantidad.focus();
+      return;
+    }
+
+    var difiere = n !== prog;
+    if (difiere && p1Motivo.value === "") {
+      p1MotivoBloque.hidden = false;
+      mostrarMensaje(p1Msg, "Indique el motivo de la diferencia con lo programado.");
+      p1Motivo.focus();
+      return;
+    }
+
+    detenerCronometro();
+
+    estado.registros[codigo] = {
+      lote: PRODUCTOS[codigo].lote,
+      programado: prog,
+      cantidad: n,
+      fecha: fechaActual(),
+      hora: horaActual(),
+      motivo: difiere ? p1Motivo.value : ""
+    };
+
+    var nombre = PRODUCTOS[codigo].nombre;
+    if (difiere) {
+      mostrarBannerInicio("warn", "⚠ Cierre registrado con diferencia: " + nombre + " · " + n + " de " + prog + " programados");
+    } else {
+      mostrarBannerInicio("ok", "✓ Cierre registrado: " + nombre + " · " + n + " de " + prog + " programados");
+    }
+    mostrarPantalla("inicio");
+  });
+
+  // LOGÍSTICA
+  function prepararLogistica(codigo) {
+    estado.productoP2 = codigo;
+    p2Verificada.value = "";
+    p2Motivo.value = "";
+    p2MotivoBloque.hidden = true;
+    mostrarResumen(p2Resumen, "", "");
+    mostrarMensaje(p2Msg, "");
+
+    if (!codigo) {
+      p2Vacio.hidden = false;
+      p2Info.hidden = true;
+      p2VerificarBloque.hidden = true;
+      return;
+    }
+
+    var r = estado.registros[codigo];
+    var p = PRODUCTOS[codigo];
+    p2Vacio.hidden = true;
+    p2Info.hidden = false;
+    p2VerificarBloque.hidden = false;
+    $("p2-nombre").textContent = p.nombre;
+    $("p2-sub").textContent = codigo + " · Lote " + p.lote + " · " + p.linea;
+    $("p2-registrada").textContent = String(r.cantidad);
+    $("p2-hora").textContent = formatearFechaHora(r.fecha, r.hora);
+
+    if (r.cantidad !== r.programado) {
+      var d = r.cantidad - r.programado;
+      mostrarResumen(p2Cambio, "warn", "⚠ Programado " + r.programado + " → Listo " + r.cantidad + " (diferencia " + (d > 0 ? "+" : "") + d + ")");
+    } else {
+      mostrarResumen(p2Cambio, "ok", "✓ Listo igual que lo programado (" + r.programado + ")");
+    }
+  }
+
+  // Devuelve true si el producto tiene cierre y puede confirmarse la carga.
+  function escanearProductoP2(valor) {
+    var codigo = String(valor).trim().toUpperCase();
+    p2Escaneo.value = codigo;
+
+    if (codigo === "") {
+      mostrarMensaje(p2MsgScan, "Escanee el producto.");
+      return false;
+    }
+    if (!PRODUCTOS[codigo]) {
+      mostrarMensaje(p2MsgScan, "Código no encontrado. Revise el producto.");
+      return false;
+    }
+    if (!estado.registros[codigo]) {
+      mostrarMensaje(p2MsgScan, "Este producto aún no tiene cierre registrado en Producción.");
+      return false;
+    }
+
+    mostrarMensaje(p2MsgScan, "");
+    prepararLogistica(codigo);
+    p2Verificada.focus();
+    return true;
+  }
+
+  function actualizarResumenP2() {
+    if (!estado.productoP2) {
+      mostrarResumen(p2Resumen, "", "");
+      p2MotivoBloque.hidden = true;
+      return;
+    }
+    var r = estado.registros[estado.productoP2];
+    var raw = p2Verificada.value.trim();
+    if (raw === "") {
+      mostrarResumen(p2Resumen, "", "");
+      p2MotivoBloque.hidden = true;
+      return;
+    }
+    var n = leerEntero(raw, r.programado);
+    if (Number.isNaN(n)) {
+      mostrarResumen(p2Resumen, "warn", "Ingrese un número entero entre 0 y " + r.programado + ".");
+      p2MotivoBloque.hidden = true;
+      return;
+    }
+    if (n === r.cantidad) {
+      mostrarResumen(p2Resumen, "ok", "✓ Coincide con lo registrado por Producción (" + r.cantidad + ")");
+      p2MotivoBloque.hidden = true;
+      return;
+    }
+    mostrarResumen(p2Resumen, "warn", "⚠ Diferente a lo registrado por Producción (" + r.cantidad + ")");
+    p2MotivoBloque.hidden = false;
+  }
+
+  $("p2-escanear").addEventListener("click", function () {
+    var valor = p2Escaneo.value.trim() || PRODUCTO_SIMULADO;
+    escanearProductoP2(valor);
+  });
+
+  p2Escaneo.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      escanearProductoP2(p2Escaneo.value);
+    }
+  });
+
+  p2Verificada.addEventListener("input", actualizarResumenP2);
+
+  p2Verificada.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      $("p2-confirmar").click();
+    }
+  });
+
+  p2Motivo.addEventListener("input", function () {
+    if (p2Motivo.value.trim() !== "") mostrarMensaje(p2Msg, "");
+  });
+
+  $("p2-confirmar").addEventListener("click", function () {
+    mostrarMensaje(p2Msg, "");
+
+    if (!estado.productoP2 && !escanearProductoP2(p2Escaneo.value)) {
+      p2Escaneo.focus();
+      return;
+    }
+
+    var codigo = estado.productoP2;
+    var r = estado.registros[codigo];
+    var n = leerEntero(p2Verificada.value, r.programado);
+    if (n === null) {
+      mostrarMensaje(p2Msg, "Ingrese la cantidad verificada.");
+      p2Verificada.focus();
+      return;
+    }
+    if (Number.isNaN(n)) {
+      mostrarMensaje(p2Msg, "La cantidad verificada debe ser un número entero entre 0 y " + r.programado + ".");
+      p2Verificada.focus();
+      return;
+    }
+
+    var difiere = n !== r.cantidad;
+    var comentario = p2Motivo.value.trim();
+    if (difiere && comentario === "") {
+      p2MotivoBloque.hidden = false;
+      mostrarMensaje(p2Msg, "Escriba un comentario sobre la diferencia.");
+      p2Motivo.focus();
+      return;
+    }
+
+    r.final = {
+      cantidad: n,
+      fecha: fechaActual(),
+      hora: horaActual(),
+      motivo: difiere ? comentario : ""
+    };
+
+    mostrarConfirmacion(codigo);
+  });
+
+  function mostrarConfirmacion(codigo) {
+    var r = estado.registros[codigo];
+    var conDif = r.final.cantidad !== r.cantidad;
+
+    var icono = $("f-icono");
+    icono.className = "icono-grande " + (conDif ? "warn" : "ok");
+    icono.textContent = conDif ? "⚠" : "✓";
+    $("f-titulo").textContent = conDif ? "Carga confirmada con diferencia" : "Carga confirmada sin diferencias";
+    $("f-producto").textContent = PRODUCTOS[codigo].nombre;
+    $("f-lote").textContent = r.lote;
+    $("f-registrada").textContent = String(r.cantidad);
+    $("f-cantidad").textContent = String(r.final.cantidad);
+    $("f-hora").textContent = formatearFechaHora(r.final.fecha, r.final.hora);
+    $("f-motivo").textContent = r.final.motivo;
+    $("f-motivo-fila").hidden = !r.final.motivo;
+
+    mostrarPantalla("confirmada");
+  }
+
+  // REINICIAR PRUEBA
+  $("reiniciar").addEventListener("click", function () {
+    estado.registros = {};
+    estado.productoP2 = null;
+    estado.pantallaPrevia = null;
+    mostrarBannerInicio("", "");
+    limpiarProduccion();
+    prepararLogistica(null);
+    p2Escaneo.value = "";
+    tiempoDetenido = null;
+    $("cronometro").textContent = "0,0";
+    clearInterval(cronoId);
+    mostrarPantalla("inicio");
+  });
+
+  // Inicio
+  $("crono-bloque").hidden = !OBSERVADOR;
+  mostrarPantalla("inicio");
+})();
+</script>
+</body>
+</html>
